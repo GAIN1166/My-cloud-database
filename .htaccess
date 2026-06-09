@@ -1,0 +1,1 @@
+AuthType Basic AuthName "请输入访问密码" AuthUserFile /vercel/path0/.htpasswd Require valid-user
