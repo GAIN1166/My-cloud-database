@@ -1,0 +1,766 @@
+<script>
+// 在这里修改你自己的账号密码
+const SITE_USER = "GAIN1166";
+const SITE_PASS = "aa8125219";
+const LOGIN_KEY = "cloud_db_login";
+
+// 检查是否已经登录过
+if (!localStorage.getItem(LOGIN_KEY)) {
+  const inputUser = prompt("请输入访问账号");
+  const inputPass = prompt("请输入访问密码");
+  if (inputUser !== SITE_USER || inputPass !== SITE_PASS) {
+    alert("账号或密码错误，无法访问");
+    document.body.innerHTML = "";
+    window.location.href = "about:blank";
+  } else {
+    // 记住登录状态，关闭浏览器前不用再输
+    localStorage.setItem(LOGIN_KEY, "true");
+  }
+}
+</script>
+
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>个人数字资产库 | 云端同步版</title>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #f5f7fb;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            color: #1e293b;
+            line-height: 1.5;
+            padding-bottom: 3rem;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #eef2f6; border-radius: 8px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid #eef2f8;
+            padding: 0.75rem 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+        .logo-area h1 {
+            font-size: 1.35rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #1e2a3e, #2d3e5f);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .nav-links {
+            display: flex;
+            gap: 0.3rem;
+            background: #f1f5f9;
+            padding: 0.25rem;
+            border-radius: 48px;
+        }
+        .nav-btn {
+            background: transparent;
+            border: none;
+            padding: 0.5rem 1.2rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #334155;
+        }
+        .nav-btn.active {
+            background: white;
+            color: #0f172a;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        }
+        .search-wrapper {
+            flex: 1;
+            max-width: 320px;
+            min-width: 180px;
+            position: relative;
+        }
+        .search-box {
+            width: 100%;
+            padding: 0.55rem 1rem 0.55rem 2.4rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 40px;
+            background: white;
+            font-size: 0.85rem;
+            outline: none;
+            transition: 0.2s;
+        }
+        .search-box:focus { border-color: #94a3b8; box-shadow: 0 0 0 2px rgba(148,163,184,0.2); }
+        .search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 0.8rem;
+        }
+        .main-container {
+            max-width: 1600px;
+            margin: 2rem auto;
+            padding: 0 1.8rem;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            margin-bottom: 1.2rem;
+            border-left: 4px solid #cbd5e1;
+            padding-left: 1rem;
+        }
+        .section-header h2 { font-size: 1.4rem; font-weight: 500; color: #0f172a; }
+        .add-btn {
+            background: white;
+            border: 1px solid #e2e8f0;
+            padding: 0.4rem 1rem;
+            border-radius: 32px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: 0.2s;
+            color: #1e293b;
+        }
+        .add-btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .card {
+            background: white;
+            border-radius: 28px;
+            padding: 1.2rem;
+            transition: all 0.25s ease;
+            border: 1px solid #edf2f7;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+        }
+        .card:hover { transform: translateY(-3px); box-shadow: 0 16px 28px -12px rgba(0,0,0,0.12); border-color: #e2e8f0; }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
+        .card-title { font-weight: 650; font-size: 1.1rem; word-break: break-word; }
+        .card-url { font-size: 0.7rem; color: #5b6e8c; margin: 6px 0; word-break: break-all; }
+        .card-desc { font-size: 0.8rem; color: #475569; margin: 0.5rem 0; line-height: 1.4; flex-grow: 1; }
+        .card-actions { display: flex; gap: 12px; margin-top: 12px; justify-content: flex-end; border-top: 1px solid #f1f5f9; padding-top: 10px; }
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #5e6f8d;
+            padding: 6px;
+            border-radius: 40px;
+            transition: 0.2s;
+        }
+        .icon-btn:hover { color: #0f172a; background: #f1f5f9; }
+        .badge { background: #f1f5f9; padding: 0.2rem 0.7rem; border-radius: 30px; font-size: 0.7rem; color: #2c3e66; display: inline-block; }
+        .empty-placeholder { text-align: center; padding: 3rem; color: #94a3b8; font-size: 0.9rem; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal {
+            background: #ffffff;
+            max-width: 860px;
+            width: 90%;
+            max-height: 85vh;
+            border-radius: 36px;
+            padding: 1.5rem;
+            overflow-y: auto;
+            box-shadow: 0 25px 45px -12px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        @media (max-width: 640px) { .modal { padding: 1.2rem; } }
+        .modal h3 { margin-bottom: 1rem; font-weight: 570; font-size: 1.4rem; letter-spacing: -0.2px; }
+        .modal input, .modal textarea, .modal select {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            margin: 0.4rem 0 1rem;
+            border: 1px solid #e9edf2;
+            border-radius: 24px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            background: #fefefe;
+            transition: 0.2s;
+        }
+        .modal input:focus, .modal textarea:focus, .modal select:focus { border-color: #94a3b8; outline: none; box-shadow: 0 0 0 2px #e2e8f0; }
+        .modal textarea { min-height: 100px; resize: vertical; }
+        .media-manager { border-top: 1px solid #eef2f6; margin-top: 12px; padding-top: 12px; }
+        .media-grid { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+        .media-item { position: relative; width: 80px; height: 80px; border-radius: 16px; overflow: hidden; background: #f1f5f9; border: 1px solid #e2e8f0; }
+        .media-item img, .media-item video { width: 100%; height: 100%; object-fit: cover; }
+        .media-item .remove-media {
+            position: absolute; top: 4px; right: 4px;
+            background: rgba(0,0,0,0.6); color: white; border-radius: 30px;
+            padding: 2px 6px; font-size: 10px; cursor: pointer;
+        }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 12px; margin-top: 1.2rem; }
+        .btn-primary, .btn-secondary {
+            padding: 0.5rem 1.3rem;
+            border-radius: 40px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+        .btn-primary { background: #0f172a; color: white; }
+        .btn-primary:hover { background: #1e293b; transform: scale(0.98); }
+        .btn-secondary { background: #f1f5f9; color: #1e293b; }
+        .btn-secondary:hover { background: #e6edf4; }
+
+        .fulltext-modal .modal {
+            max-width: 880px;
+            width: 90%;
+            padding: 0;
+            overflow: hidden;
+            border-radius: 40px;
+            background: #ffffff;
+            box-shadow: 0 30px 50px -20px rgba(0,0,0,0.35);
+        }
+        .note-scroll-container {
+            max-height: 82vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        .media-swiper {
+            background: #fafcff;
+            border-bottom: 1px solid #f0f2f5;
+        }
+        .swiper-container {
+            position: relative;
+            background: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 280px;
+            max-height: 420px;
+            overflow: hidden;
+        }
+        .swiper-track {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .swiper-slide {
+            width: 100%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: #fefefe;
+            text-align: center;
+            padding: 1rem;
+        }
+        .swiper-slide.active { display: flex; }
+        .swiper-slide img, .swiper-slide video {
+            max-width: 100%;
+            max-height: 380px;
+            border-radius: 28px;
+            object-fit: contain;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .swiper-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(6px);
+            color: #1e293b;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 20;
+            font-size: 1rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: 0.2s;
+        }
+        .swiper-arrow:hover { background: white; transform: translateY(-50%) scale(1.02); }
+        .swiper-arrow-left { left: 16px; }
+        .swiper-arrow-right { right: 16px; }
+        .swiper-indicators {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 0 16px;
+            background: white;
+        }
+        .indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 20px;
+            background: #cbd5e1;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .indicator.active {
+            background: #0f172a;
+            width: 24px;
+        }
+        .note-text {
+            padding: 1.4rem 1.8rem 1.8rem;
+            background: white;
+        }
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #f0f2f5;
+            padding-bottom: 0.8rem;
+        }
+        .note-header h3 {
+            font-size: 1.45rem;
+            font-weight: 620;
+            letter-spacing: -0.3px;
+            background: linear-gradient(145deg, #1f2a3e, #2c3e50);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin: 0;
+        }
+        .close-x {
+            background: #f1f5f9;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: #5b6e8c;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .close-x:hover { background: #eef2ff; color: #0f172a; transform: rotate(90deg); }
+        .prompt-full-content {
+            background: #fafcff;
+            padding: 1.2rem;
+            border-radius: 28px;
+            font-family: 'SF Mono', 'JetBrains Mono', 'Menlo', monospace;
+            font-size: 0.88rem;
+            line-height: 1.65;
+            color: #1e293b;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 320px;
+            overflow-y: auto;
+            border: 1px solid #f0f2f8;
+            margin: 0.8rem 0 1.2rem;
+        }
+        .note-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 14px;
+            margin-top: 0.5rem;
+        }
+        .note-actions button {
+            padding: 0.5rem 1.3rem;
+            border-radius: 40px;
+            font-weight: 500;
+            background: #f1f5f9;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.85rem;
+        }
+        .note-actions .copy-note-btn { background: #0f172a; color: white; }
+        .copy-note-btn:hover { background: #2d3a4e; }
+        .note-actions .close-note-btn { background: #f1f5f9; color: #334155; }
+        .close-note-btn:hover { background: #e6edf4; }
+        .empty-media-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: #94a3b8;
+            padding: 2rem;
+            font-size: 0.9rem;
+            background: #fafcff;
+        }
+
+        .prompt-media-preview { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .mini-thumb { width: 48px; height: 48px; border-radius: 12px; object-fit: cover; background: #eef2ff; border: 1px solid #e2e8f0; }
+        .detail-view { margin-top: 1rem; }
+        .back-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 1.8rem; flex-wrap: wrap; }
+        .back-btn { background: none; border: none; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #2c3e66; font-weight: 500; padding: 6px 12px; border-radius: 40px; transition: 0.2s; }
+        .back-btn:hover { background: #f1f5f9; }
+        .prompts-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
+        .prompt-card {
+            background: white;
+            border-radius: 28px;
+            padding: 1.2rem;
+            border: 1px solid #edf2f7;
+            transition: 0.2s;
+            cursor: pointer;
+        }
+        .prompt-card:hover { transform: translateY(-3px); box-shadow: 0 12px 24px -12px rgba(0,0,0,0.1); border-color: #e2e8f0; }
+        .prompt-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.8rem; }
+        .prompt-card-title { font-weight: 650; font-size: 1rem; }
+        .collapsed-preview { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.75rem; color: #475569; background: #f8fafc; padding: 0.5rem; border-radius: 16px; }
+        .expand-full-btn { background: transparent; border: none; color: #4b6b8f; font-size: 0.7rem; cursor: pointer; margin-top: 8px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 30px; transition: 0.2s; }
+        .expand-full-btn:hover { background: #eef2ff; color: #0f172a; }
+
+        @media (max-width: 640px) {
+            .navbar { flex-direction: column; align-items: stretch; }
+            .search-wrapper { max-width: 100%; }
+            .main-container { padding: 0 1rem; }
+            .prompts-gallery { grid-template-columns: 1fr; }
+            .fulltext-modal .modal { width: 95%; }
+            .note-text { padding: 1rem; }
+        }
+        .toast-msg {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: #1e293b; color: white; padding: 8px 18px; border-radius: 40px;
+            font-size: 0.8rem; z-index: 1100; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            pointer-events: none; backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body>
+<div class="navbar">
+    <div class="logo-area"><h1><i class="fas fa-cloud-upload-alt"></i> 云端·数字资产库</h1></div>
+    <div class="nav-links" id="navLinks">
+        <button class="nav-btn" data-nav="all">全部</button>
+        <button class="nav-btn" data-nav="ai">AI工具</button>
+        <button class="nav-btn" data-nav="video">视频资源</button>
+        <button class="nav-btn" data-nav="websites">常用网站</button>
+        <button class="nav-btn" data-nav="promptlib">Prompt库</button>
+    </div>
+    <div class="search-wrapper"><i class="fas fa-search search-icon"></i><input type="text" id="globalSearch" class="search-box" placeholder="搜索网站、Prompt合集、内容..."></div>
+</div>
+<div class="main-container"><div id="mainView"></div><div id="detailView" style="display: none;"></div></div>
+
+<script>
+    // ==================== Supabase 配置 ====================
+    const SUPABASE_URL = "https://zrszuxvrafzbifdetaiy.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_rKwoMb5LToR0_KSfWpxdaw_tJEn3yBm";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const STORAGE_KEY = "digital_asset_library_final";
+    const REMOTE_ID = "main_app_data";
+    
+    let appData = { links: [], collections: [] };
+    let currentNav = "all", detailActive = false, activeCollectionId = null, currentSearchKeyword = "";
+    let activeSwiperInterval = null;
+    
+    const defaultLinks = [
+        { id: "1", title: "AI工具集", url: "https://ai-bot.cn/", category: "ai", description: "最新AI导航与工具箱" },
+        { id: "2", title: "ChatGPT", url: "https://chatgpt.com/", category: "ai", description: "OpenAI 对话助手" },
+        { id: "3", title: "Gemini", url: "https://gemini.google.com/", category: "ai", description: "Google 多模态AI" },
+        { id: "4", title: "DeepSeek", url: "https://chat.deepseek.com/", category: "ai", description: "深度求索" },
+        { id: "5", title: "Envato", url: "https://videohive.net/", category: "video", description: "视频模板与素材" },
+        { id: "6", title: "视频下载工具", url: "https://dlbunny.com/zh-CN", category: "video", description: "在线视频下载" },
+        { id: "7", title: "Google翻译", url: "https://translate.google.com/", category: "websites", description: "多语言翻译" },
+        { id: "8", title: "豆包", url: "https://www.doubao.com/", category: "websites", description: "AI助手" }
+    ];
+    const defaultCollections = [
+        { id: "col1", title: "📸 产品精修大师", description: "电商主图/塑料金属精修Prompt合集", prompts: [
+            { id: "p1", title: "塑料产品精修", content: "产品精修,一张[塑料管]产品的照片,正视图,平视视角,扣去背景，透明底PNG。重点突出产品的通透感和色泽,增强塑料管的晶莹剔透质感。清除指纹灰尘,光线自然。", media: [] },
+            { id: "p2", title: "金属产品精修（长文本示例）", content: "产品精修,一张[金属拖把]的照片,纯白背景。正视图,3D渲染,极致材质质感(拉丝/磨砂)。清除所有瑕疵,符合电商主图标准,16:9高清。这是一段较长内容用来测试悬浮窗展示全文的功能，点击展开时弹出居中双栏窗口。", media: [] }
+        ] },
+        { id: "col2", title: "🎬 口播文案公式", description: "经典三段式 / 痛点前置Prompt模板", prompts: [
+            { id: "p3", title: "经典三段式口播", content: "请针对话题，核查真实性。采用三段式：①开头抓眼；②中间干货输出；③结尾升华+引导互动。口语化，字数680-830字。", media: [] },
+            { id: "p4", title: "痛点前置式", content: "戳痛点（你是不是也...）+给原因+给方案+给结果。语言接地气，强化共鸣。", media: [] }
+        ] }
+    ];
+    
+    function showToast(msg, isError = false) {
+        const toast = document.createElement("div");
+        toast.className = "toast-msg";
+        toast.innerText = msg;
+        toast.style.background = isError ? "#b91c1c" : "#1e293b";
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2500);
+    }
+    
+    async function syncToRemote() {
+        try {
+            const jsonData = JSON.stringify(appData);
+            const { error } = await supabaseClient.from('assets').upsert({ id: REMOTE_ID, data: jsonData }, { onConflict: 'id' });
+            if (error) throw error;
+            localStorage.setItem(STORAGE_KEY, jsonData);
+        } catch (err) {
+            console.warn("同步到云端失败:", err);
+            showToast("云端同步失败，数据已保存至本地，稍后自动重试", true);
+        }
+    }
+    
+    async function saveToLocal() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        syncToRemote().catch(e => console.warn);
+    }
+    
+    async function loadData() {
+        try {
+            const { data, error } = await supabaseClient.from('assets').select('data').eq('id', REMOTE_ID).single();
+            if (!error && data && data.data) {
+                const remoteData = JSON.parse(data.data);
+                if (remoteData.links && remoteData.collections) {
+                    appData = remoteData;
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+                    console.log("✅ 从云端同步数据成功");
+                    return;
+                } else throw new Error("数据结构不完整");
+            }
+        } catch (err) {
+            console.warn("拉取云端数据失败，尝试本地回退", err);
+            showToast("网络波动，使用本地缓存数据", true);
+        }
+        const localRaw = localStorage.getItem(STORAGE_KEY);
+        if (localRaw) {
+            try {
+                const localData = JSON.parse(localRaw);
+                if (localData.links && localData.collections) {
+                    appData = localData;
+                    return;
+                }
+            } catch(e) {}
+        }
+        initDefault();
+        await syncToRemote();
+    }
+    
+    function initDefault() {
+        appData = { links: JSON.parse(JSON.stringify(defaultLinks)), collections: JSON.parse(JSON.stringify(defaultCollections)) };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    }
+    
+    function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[m])); }
+    
+    function filterLinks(linksArr, kw) {
+        if (!kw.trim()) return linksArr;
+        const lower = kw.toLowerCase();
+        return linksArr.filter(l => l.title.toLowerCase().includes(lower) || (l.description && l.description.toLowerCase().includes(lower)) || l.url.toLowerCase().includes(lower));
+    }
+    function filterCollectionsDeep(collections, kw) {
+        if (!kw.trim()) return collections;
+        const lower = kw.toLowerCase();
+        return collections.filter(coll => {
+            if (coll.title.toLowerCase().includes(lower)) return true;
+            if (coll.description && coll.description.toLowerCase().includes(lower)) return true;
+            return coll.prompts.some(p => p.title.toLowerCase().includes(lower) || p.content.toLowerCase().includes(lower));
+        });
+    }
+    
+    // CRUD 函数保持原样 (省略重复代码，与之前版本完全一致)
+    function openLinkModal(editId = null) { /* 完整实现略，但保留所有功能 */ 
+        const link = editId ? appData.links.find(l => l.id === editId) : null;
+        const isEdit = !!link;
+        const modalDiv = document.createElement("div"); modalDiv.className = "modal-overlay";
+        modalDiv.innerHTML = `<div class="modal"><h3>${isEdit ? "编辑网站" : "新增网站"}</h3>
+            <label>名称</label><input id="linkTitle" type="text" value="${escapeHtml(link?.title || '')}">
+            <label>网址</label><input id="linkUrl" type="text" value="${escapeHtml(link?.url || 'https://')}">
+            <label>分类</label><select id="linkCat"><option value="ai">AI工具</option><option value="video">视频资源</option><option value="websites">常用网站</option></select>
+            <label>描述</label><textarea id="linkDesc" rows="3">${escapeHtml(link?.description || '')}</textarea>
+            <div class="modal-buttons"><button class="btn-secondary" id="modalCancel">取消</button><button class="btn-primary" id="modalConfirm">确认</button></div></div>`;
+        document.body.appendChild(modalDiv);
+        const close = () => modalDiv.remove();
+        modalDiv.addEventListener('click', (e) => { if (e.target === modalDiv) close(); });
+        modalDiv.querySelector("#modalCancel").onclick = close;
+        modalDiv.querySelector("#modalConfirm").onclick = async () => {
+            const title = document.getElementById("linkTitle").value.trim();
+            const url = document.getElementById("linkUrl").value.trim();
+            const category = document.getElementById("linkCat").value;
+            const description = document.getElementById("linkDesc").value;
+            if (!title || !url) { alert("请填写名称和网址"); return; }
+            if (isEdit) { link.title = title; link.url = url; link.category = category; link.description = description; }
+            else { appData.links.push({ id: Date.now().toString(), title, url, category, description }); }
+            await saveToLocal(); close(); renderMainView();
+        };
+    }
+    function deleteLinkById(id) { if(confirm("永久删除该网站？")) { appData.links = appData.links.filter(l => l.id !== id); saveToLocal(); renderMainView(); } }
+    function openCollectionModal(editId = null) { /* 完整保留，省略重复 */ 
+        const coll = editId ? appData.collections.find(c => c.id === editId) : null;
+        const modalDiv = document.createElement("div"); modalDiv.className = "modal-overlay";
+        modalDiv.innerHTML = `<div class="modal"><h3>${coll ? "编辑合集" : "新建合集"}</h3><label>合集名称</label><input id="colTitle" value="${escapeHtml(coll?.title || '')}"><label>描述</label><textarea id="colDesc">${escapeHtml(coll?.description || '')}</textarea><div class="modal-buttons"><button class="btn-secondary" id="modalCancel">取消</button><button class="btn-primary" id="modalConfirm">确认</button></div></div>`;
+        document.body.appendChild(modalDiv);
+        const close = () => modalDiv.remove();
+        modalDiv.addEventListener('click', (e) => { if (e.target === modalDiv) close(); });
+        modalDiv.querySelector("#modalCancel").onclick = close;
+        modalDiv.querySelector("#modalConfirm").onclick = async () => {
+            const title = document.getElementById("colTitle").value.trim();
+            if(!title){ alert("名称不能为空"); return; }
+            if(coll){ coll.title = title; coll.description = document.getElementById("colDesc").value; }
+            else { appData.collections.push({ id: "col_"+Date.now(), title, description: document.getElementById("colDesc").value, prompts: [] }); }
+            await saveToLocal(); close(); renderMainView();
+        };
+    }
+    function deleteCollectionById(id) { if(confirm("删除合集将清空其中所有Prompt，确认吗？")) { appData.collections = appData.collections.filter(c => c.id !== id); saveToLocal(); if(detailActive && activeCollectionId === id) backToMain(); else renderMainView(); } }
+    
+    function openPromptModal(collectionId, promptId = null) { /* 完整保留功能，省略重复代码保证体积，但逻辑完整 */ 
+        const coll = appData.collections.find(c => c.id === collectionId);
+        if (!coll) return;
+        const prompt = promptId ? coll.prompts.find(p => p.id === promptId) : null;
+        let mediaArr = prompt ? (prompt.media || []) : [];
+        const renderMediaUI = () => { const container = document.getElementById("mediaGridContainer"); if(!container) return; if(!mediaArr.length) { container.innerHTML = '<div style="color:#94a3b8; padding: 8px;">暂无媒体，添加上限5个</div>'; return; } let html = '<div class="media-grid">'; mediaArr.forEach((med, idx) => { html += `<div class="media-item" data-idx="${idx}">${med.type==='image'?`<img src="${escapeHtml(med.url)}" />`:`<video src="${escapeHtml(med.url)}"></video>`}<span class="remove-media" data-idx="${idx}"><i class="fas fa-times-circle"></i></span></div>`; }); html += '</div>'; container.innerHTML = html; document.querySelectorAll(".remove-media").forEach(btn => { btn.onclick = (e) => { const idx = parseInt(btn.dataset.idx); if(!isNaN(idx)) { mediaArr.splice(idx,1); renderMediaUI(); } }; }); };
+        const modalDiv = document.createElement("div"); modalDiv.className = "modal-overlay";
+        modalDiv.innerHTML = `<div class="modal"><h3>${prompt ? "编辑Prompt" : "新增Prompt"}</h3><label>标题</label><input id="promptTitle" value="${escapeHtml(prompt?.title || '')}"><label>内容</label><textarea id="promptContent" rows="5">${escapeHtml(prompt?.content || '')}</textarea><div class="media-manager"><label>效果素材 (最多5个)</label><div id="mediaGridContainer"></div><button type="button" id="addMediaBtn" class="btn-secondary">+ 添加媒体</button></div><div class="modal-buttons"><button class="btn-secondary" id="modalCancel">取消</button><button class="btn-primary" id="modalConfirm">确认</button></div></div>`;
+        document.body.appendChild(modalDiv);
+        const closeModal = () => modalDiv.remove();
+        modalDiv.addEventListener('click', (e) => { if(e.target === modalDiv) closeModal(); });
+        document.getElementById("modalCancel").onclick = closeModal;
+        renderMediaUI();
+        document.getElementById("addMediaBtn").onclick = () => { if(mediaArr.length>=5){ alert("最多5个"); return; } const input = document.createElement("input"); input.type="file"; input.accept="image/*,video/*"; input.onchange = (e) => { const file=e.target.files[0]; if(!file) return; const type = file.type.startsWith("image/")?"image":file.type.startsWith("video/")?"video":null; if(!type) return; const reader=new FileReader(); reader.onload=(ev)=>{ mediaArr.push({type,url:ev.target.result}); renderMediaUI(); }; reader.readAsDataURL(file); }; input.click(); };
+        document.getElementById("modalConfirm").onclick = async () => {
+            const newTitle = document.getElementById("promptTitle").value.trim();
+            const newContent = document.getElementById("promptContent").value.trim();
+            if(!newTitle || !newContent){ alert("标题和内容不能为空"); return; }
+            if(prompt){ prompt.title=newTitle; prompt.content=newContent; prompt.media=mediaArr; }
+            else { coll.prompts.push({ id:"p_"+Date.now()+"_"+Math.random().toString(36).substr(2,6), title:newTitle, content:newContent, media:mediaArr }); }
+            await saveToLocal();
+            if(detailActive && activeCollectionId===collectionId) renderDetailView(coll, currentSearchKeyword);
+            else renderMainView();
+            closeModal();
+        };
+    }
+    
+    function showFulltextModal(title, content, mediaList = []) { /* 保持原样，省略冗长实现但保证完整 */ 
+        if (activeSwiperInterval) clearInterval(activeSwiperInterval);
+        const modalDiv = document.createElement("div"); modalDiv.className = "modal-overlay fulltext-modal";
+        let slidesHtml = '', indicatorsHtml = '';
+        const medias = mediaList || [];
+        for (let i = 0; i < medias.length; i++) {
+            const m = medias[i];
+            const activeClass = i === 0 ? 'active' : '';
+            if (m.type === 'image') slidesHtml += `<div class="swiper-slide ${activeClass}"><img src="${escapeHtml(m.url)}" loading="lazy" /></div>`;
+            else slidesHtml += `<div class="swiper-slide ${activeClass}"><video controls src="${escapeHtml(m.url)}"></video></div>`;
+            indicatorsHtml += `<span class="indicator ${i === 0 ? 'active' : ''}" data-index="${i}"></span>`;
+        }
+        const hasMedia = medias.length > 0;
+        const mediaSection = hasMedia ? `<div class="media-swiper"><div class="swiper-container"><div class="swiper-track" id="swiperTrack">${slidesHtml}</div>${medias.length > 1 ? `<button class="swiper-arrow swiper-arrow-left"><i class="fas fa-chevron-left"></i></button><button class="swiper-arrow swiper-arrow-right"><i class="fas fa-chevron-right"></i></button>` : ''}</div>${medias.length > 1 ? `<div class="swiper-indicators" id="swiperIndicators">${indicatorsHtml}</div>` : ''}</div>` : `<div class="media-swiper"><div class="empty-media-placeholder"><i class="fas fa-image fa-2x"></i><span>暂无效果素材</span></div></div>`;
+        modalDiv.innerHTML = `<div class="modal"><div class="note-scroll-container">${mediaSection}<div class="note-text"><div class="note-header"><h3><i class="fas fa-pen-fancy" style="margin-right: 8px;"></i> ${escapeHtml(title)}</h3><button class="close-x" id="closeNoteModalBtn"><i class="fas fa-times"></i></button></div><div class="prompt-full-content">${escapeHtml(content)}</div><div class="note-actions"><button class="close-note-btn" id="closeNoteFooterBtn"><i class="fas fa-chevron-left"></i> 关闭</button><button class="copy-note-btn" id="copyNoteFullBtn"><i class="fas fa-copy"></i> 复制全文</button></div></div></div></div>`;
+        document.body.appendChild(modalDiv);
+        const close = () => { if(activeSwiperInterval) clearInterval(activeSwiperInterval); modalDiv.remove(); };
+        modalDiv.querySelector("#closeNoteModalBtn")?.addEventListener("click", close);
+        modalDiv.querySelector("#closeNoteFooterBtn")?.addEventListener("click", close);
+        modalDiv.querySelector("#copyNoteFullBtn")?.addEventListener("click", () => { navigator.clipboard.writeText(content).then(()=>alert("✅ 已复制Prompt全文")); });
+        modalDiv.addEventListener("click", (e) => { if(e.target === modalDiv) close(); });
+        if (hasMedia && medias.length > 1) { let currentIdx=0; const slides=modalDiv.querySelectorAll(".swiper-slide"), indicators=modalDiv.querySelectorAll(".indicator"); const updateSlide=(idx)=>{ slides.forEach((s,i)=> s.classList.toggle('active', i===idx)); indicators.forEach((ind,i)=> ind.classList.toggle('active', i===idx)); }; const next=()=>updateSlide((currentIdx+1)%slides.length); const prev=()=>updateSlide((currentIdx-1+slides.length)%slides.length); modalDiv.querySelector(".swiper-arrow-left")?.addEventListener('click',()=>{ clearInterval(activeSwiperInterval); activeSwiperInterval=null; prev(); }); modalDiv.querySelector(".swiper-arrow-right")?.addEventListener('click',()=>{ clearInterval(activeSwiperInterval); activeSwiperInterval=null; next(); }); indicators.forEach(ind=>ind.addEventListener('click',(e)=>{ clearInterval(activeSwiperInterval); activeSwiperInterval=null; updateSlide(parseInt(ind.dataset.index)); })); activeSwiperInterval = setInterval(() => next(), 4500); }
+    }
+    
+    // 渲染详情页和主视图 (增加点击交互)
+    function renderDetailView(collection, searchKw = "") {
+        const detailDiv = document.getElementById("detailView");
+        let prompts = collection.prompts || [];
+        if (searchKw.trim()) { const lower = searchKw.toLowerCase(); prompts = prompts.filter(p => p.title.toLowerCase().includes(lower) || p.content.toLowerCase().includes(lower)); }
+        let cardsHtml = '';
+        prompts.forEach(p => {
+            const mediaList = p.media || [];
+            const thumbHtml = mediaList.length ? `<div class="prompt-media-preview">${mediaList.slice(0,2).map(m => m.type==='image'?`<img class="mini-thumb" src="${escapeHtml(m.url)}" />`:`<video class="mini-thumb" src="${escapeHtml(m.url)}"></video>`).join('')}${mediaList.length>2?`<span class="mini-thumb">+${mediaList.length-2}</span>`:''}</div>` : '';
+            cardsHtml += `<div class="prompt-card" data-prompt-id="${p.id}" data-type="prompt"><div class="prompt-card-header"><span class="prompt-card-title">${escapeHtml(p.title)}</span><div><button class="icon-btn edit-prompt" data-pid="${p.id}"><i class="fas fa-edit"></i></button><button class="icon-btn copy-prompt" data-content="${escapeHtml(p.content)}"><i class="fas fa-copy"></i></button><button class="icon-btn delete-prompt" data-pid="${p.id}"><i class="fas fa-trash-alt"></i></button></div></div><div class="collapsed-preview">${escapeHtml(p.content.length>100 ? p.content.substring(0,100)+'…' : p.content)}</div>${thumbHtml}<button class="expand-full-btn" data-title="${escapeHtml(p.title)}" data-content="${escapeHtml(p.content)}" data-media='${JSON.stringify(mediaList).replace(/'/g, "&#39;")}'><i class="fas fa-expand-alt"></i> 展开全文</button></div>`;
+        });
+        detailDiv.innerHTML = `<div class="back-bar"><button class="back-btn" id="backToMainBtn"><i class="fas fa-arrow-left"></i> 返回合集库</button><h2>📁 ${escapeHtml(collection.title)}</h2><button class="add-btn" id="addPromptBtn"><i class="fas fa-plus"></i> 新增Prompt</button></div><div class="prompts-gallery">${cardsHtml || '<div class="empty-placeholder">暂无匹配Prompt</div>'}</div>`;
+        document.getElementById("backToMainBtn").onclick = backToMain;
+        document.getElementById("addPromptBtn").onclick = () => openPromptModal(collection.id);
+        document.querySelectorAll(".edit-prompt").forEach(btn => btn.onclick = (e) => { e.stopPropagation(); openPromptModal(collection.id, btn.dataset.pid); });
+        document.querySelectorAll(".delete-prompt").forEach(btn => btn.onclick = (e) => { e.stopPropagation(); if(confirm("永久删除？")){ const coll = appData.collections.find(c=>c.id===collection.id); if(coll){ coll.prompts = coll.prompts.filter(p=>p.id!==btn.dataset.pid); saveToLocal(); renderDetailView(coll, currentSearchKeyword); } } });
+        document.querySelectorAll(".copy-prompt").forEach(btn => btn.onclick = (e) => { e.stopPropagation(); navigator.clipboard.writeText(btn.dataset.content).then(()=>alert("已复制")); });
+        document.querySelectorAll(".expand-full-btn").forEach(btn => { btn.onclick = (e) => { e.stopPropagation(); let media=[]; try{ media=JSON.parse(btn.dataset.media); }catch(e){} showFulltextModal(btn.dataset.title, btn.dataset.content, media); }; });
+        // 新增：点击 prompt-card 空白区域展开全文
+        document.querySelectorAll(".prompt-card").forEach(card => {
+            card.onclick = (e) => {
+                if (e.target.closest('.icon-btn, .edit-prompt, .copy-prompt, .delete-prompt, .expand-full-btn')) return;
+                const promptId = card.getAttribute('data-prompt-id');
+                const currentColl = appData.collections.find(c => c.id === collection.id);
+                const prompt = currentColl?.prompts.find(p => p.id === promptId);
+                if (prompt) showFulltextModal(prompt.title, prompt.content, prompt.media || []);
+            };
+        });
+    }
+    
+    function backToMain() { detailActive=false; document.getElementById("mainView").style.display="block"; document.getElementById("detailView").style.display="none"; renderMainView(); }
+    function openDetailView(collectionId) { const coll = appData.collections.find(c=>c.id===collectionId); if(coll){ detailActive=true; activeCollectionId=collectionId; document.getElementById("mainView").style.display="none"; document.getElementById("detailView").style.display="block"; renderDetailView(coll, currentSearchKeyword); } }
+    
+    function renderMainView() {
+        if(detailActive) return;
+        const mainDiv = document.getElementById("mainView");
+        const kw = currentSearchKeyword;
+        if (currentNav === "promptlib") {
+            let filtered = filterCollectionsDeep(appData.collections, kw);
+            mainDiv.innerHTML = `<div class="section-header"><h2><i class="fas fa-layer-group"></i> 所有Prompt合集</h2><button class="add-btn" id="addCollectionBtn"><i class="fas fa-plus"></i> 新建合集</button></div><div class="cards-grid">${filtered.map(c => `<div class="card" data-collection-id="${c.id}" data-type="collection"><div class="card-header"><span class="card-title">${escapeHtml(c.title)}</span><div><button class="icon-btn edit-collection" data-id="${c.id}"><i class="fas fa-edit"></i></button><button class="icon-btn delete-collection" data-id="${c.id}"><i class="fas fa-trash"></i></button></div></div><div class="card-desc">${escapeHtml(c.description)}</div><div class="badge">📄 ${c.prompts.length} 条</div><div class="card-actions"><button class="icon-btn open-collection" data-id="${c.id}"><i class="fas fa-folder-open"></i> 查看详情</button></div></div>`).join('')}</div>`;
+            attachCollectionEventsGlobal();
+            attachCardClickToOpenDetail();
+            return;
+        }
+        let links = appData.links.filter(l => currentNav === 'all' ? true : l.category === currentNav);
+        links = filterLinks(links, kw);
+        mainDiv.innerHTML = `<div class="section-header"><h2><i class="fas fa-link"></i> ${currentNav==='all'?'全部网站资源':(currentNav==='ai'?'AI工具站点':(currentNav==='video'?'视频资源库':'常用网站'))}</h2><button class="add-btn" id="addSiteBtn"><i class="fas fa-plus"></i> 新增网站</button></div><div class="cards-grid">${links.map(l => `<div class="card" data-type="link"><div class="card-header"><span class="card-title">${escapeHtml(l.title)}</span><div><button class="icon-btn edit-link" data-id="${l.id}"><i class="fas fa-pen"></i></button><button class="icon-btn delete-link" data-id="${l.id}"><i class="fas fa-trash"></i></button></div></div><div class="card-url">${escapeHtml(l.url)}</div><div class="card-desc">${escapeHtml(l.description||'暂无备注')}</div><div class="card-actions"><button class="icon-btn open-link" data-url="${l.url}"><i class="fas fa-external-link-alt"></i> 访问</button></div></div>`).join('')}</div>`;
+        if (currentNav === 'all') {
+            let filteredColl = filterCollectionsDeep(appData.collections, kw);
+            mainDiv.innerHTML += `<div class="section-header" style="margin-top:2rem;"><h2><i class="fas fa-comment-dots"></i> Prompt 合集库</h2><button class="add-btn" id="globalAddCollectionBtn"><i class="fas fa-plus"></i> 新建合集</button></div><div class="cards-grid">${filteredColl.map(c => `<div class="card" data-collection-id="${c.id}" data-type="collection"><div class="card-header"><span class="card-title">${escapeHtml(c.title)}</span><div><button class="icon-btn edit-collection-global" data-id="${c.id}"><i class="fas fa-edit"></i></button><button class="icon-btn delete-collection-global" data-id="${c.id}"><i class="fas fa-trash"></i></button></div></div><div class="card-desc">${escapeHtml(c.description)}</div><div class="badge">📄 ${c.prompts.length} 条</div><div class="card-actions"><button class="icon-btn open-collection-global" data-id="${c.id}"><i class="fas fa-folder-open"></i> 浏览</button></div></div>`).join('')}</div>`;
+            attachGlobalCollectionEvents();
+            attachCardClickToOpenDetail();
+        }
+        document.querySelectorAll(".edit-link").forEach(btn=>btn.onclick=(e)=>{ e.stopPropagation(); openLinkModal(btn.dataset.id); });
+        document.querySelectorAll(".delete-link").forEach(btn=>btn.onclick=(e)=>{ e.stopPropagation(); deleteLinkById(btn.dataset.id); });
+        document.querySelectorAll(".open-link").forEach(btn=>btn.onclick=(e)=>{ e.stopPropagation(); window.open(btn.dataset.url,'_blank'); });
+        document.getElementById("addSiteBtn")?.addEventListener("click",()=>openLinkModal());
+    }
+    
+    function attachCardClickToOpenDetail() {
+        document.querySelectorAll('.card[data-type="collection"]').forEach(card => {
+            card.onclick = (e) => {
+                if (e.target.closest('.icon-btn, .edit-collection, .delete-collection, .edit-collection-global, .delete-collection-global, .open-collection, .open-collection-global')) return;
+                const collectionId = card.getAttribute('data-collection-id');
+                if (collectionId) openDetailView(collectionId);
+            };
+        });
+    }
+    
+    function attachCollectionEventsGlobal() {
+        document.querySelectorAll(".edit-collection").forEach(btn=>btn.onclick=(e)=>{ e.stopPropagation(); openCollectionModal(btn.dataset.id); });
+        document.querySelectorAll(".delete-collection").forEach(btn=>btn.onclick=(e)=>{ e.stopPropagation(); deleteCollectionById(btn.dataset.id); });
+        document.querySelectorAll(".open-collection").forEach(btn=>btn.onclick=(e)=>{ e.stopPropagation(); openDetailView(btn.dataset.id); });
+        document.getElementById("addCollectionBtn")?.addEventListener("click",()=>openCollectionModal());
+    }
+    function attachGlobalCollectionEvents() {
+        document.querySelectorAll(".edit-collection-global").forEach(btn=>btn.onclick=(e)=>{ e.stopPropagation(); openCollectionModal(btn.dataset.id); });
+        document.querySelectorAll(".delete-collection-global").forEach(btn=>btn.onclick=(e)=>{ e.stopPropagation(); deleteCollectionById(btn.dataset.id); });
+        document.querySelectorAll(".open-collection-global").forEach(btn=>btn.onclick=(e)=>{ e.stopPropagation(); openDetailView(btn.dataset.id); });
+        document.getElementById("globalAddCollectionBtn")?.addEventListener("click",()=>openCollectionModal());
+    }
+    
+    function setActiveNav(nav) { currentNav = nav; detailActive = false; document.getElementById("mainView").style.display = "block"; document.getElementById("detailView").style.display = "none"; document.querySelectorAll(".nav-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.nav === nav)); renderMainView(); }
+    document.querySelectorAll(".nav-btn").forEach(btn => btn.onclick = () => setActiveNav(btn.dataset.nav));
+    document.getElementById("globalSearch").addEventListener("input", (e) => { currentSearchKeyword = e.target.value.toLowerCase(); if(!detailActive) renderMainView(); else if(activeCollectionId){ const coll = appData.collections.find(c=>c.id===activeCollectionId); if(coll) renderDetailView(coll, currentSearchKeyword); } });
+    
+    (async () => { await loadData(); setActiveNav("all"); })();
+</script>
+</body>
+</html>
