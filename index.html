@@ -756,5 +756,33 @@ if (!localStorage.getItem(LOGIN_KEY)) {
         setActiveNav("all");
     })();
 </script>
+  <script>
+// 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', () => {
+  // 1. 外层工具卡片：点空白处跳转访问
+  document.querySelectorAll('.tool-card').forEach(card => {
+    card.style.cursor = 'pointer'; // 加手型提示可点击
+    card.addEventListener('click', (e) => {
+      // 排除点击编辑、删除按钮的情况
+      if (!e.target.closest('.action-btn')) {
+        const visitLink = card.querySelector('.visit-btn');
+        if (visitLink) window.open(visitLink.href, '_blank');
+      }
+    });
+  });
+
+  // 2. 内层Prompt子集：点空白处展开全文
+  document.querySelectorAll('.prompt-item').forEach(item => {
+    item.style.cursor = 'pointer';
+    item.addEventListener('click', (e) => {
+      // 排除点击编辑、删除按钮
+      if (!e.target.closest('.prompt-action')) {
+        const expandBtn = item.querySelector('.expand-btn');
+        if (expandBtn) expandBtn.click(); // 模拟点击展开按钮
+      }
+    });
+  });
+});
+</script>
 </body>
 </html>
