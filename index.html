@@ -10,35 +10,7 @@
     <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Supabase JS SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script>
-  const supabaseUrl = 'https://zrszuxvrafzbifdetaiy.supabase.co';
-  const supabaseKey = 'sb_publishable_rKwoMb5LToR0_KSfWpxdaw_tJEn3yBm';
-  const { createClient } = supabase;
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
-  async function login(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
-    
-    if (error) console.error('登录失败:', error.message);
-    else console.log('登录成功:', data);
-  }
-</script>
-
-```
-<div>
-  <input type="email" id="email" placeholder="邮箱">
-  <input type="password" id="password" placeholder="密码">
-  <button onclick="login(document.getElementById('email').value, document.getElementById('password').value)">登录</button>
-</div>
-
-
-
-    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
